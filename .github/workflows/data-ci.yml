@@ -12,9 +12,8 @@ jobs:
       with:
         python-version: '3.11'
     - name: Install dependencies
-      run: |
-        pip install .
-        pip install pytest
-    - name: Run Validation Checks
-      run: |
-        polaguard check --file tests/sample.csv --contract tests/contract.yaml
+      run: pip install ".[dev]"
+    - name: Run unit tests
+      run: pytest tests/ -v
+    - name: Run smoke check
+      run: polaguard check --file tests/sample.csv --contract tests/contract.yaml

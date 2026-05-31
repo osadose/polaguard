@@ -1,0 +1,26 @@
+version: 1.0.0
+dataset_name: sample
+constraints:
+  min_columns: 4
+  allow_extra_columns: false
+columns:
+  id:
+    type: int
+    required: true
+    unique: true
+    null_threshold: 0.0
+  name:
+    type: str
+    required: true
+    unique: true
+    null_threshold: 0.0
+  email:
+    type: str
+    required: true
+    unique: true
+    null_threshold: 0.0
+  score:
+    type: float
+    required: true
+    unique: true
+    null_threshold: 0.0
