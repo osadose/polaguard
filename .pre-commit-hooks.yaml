@@ -1,0 +1,7 @@
+- id: polaguard
+  name: Polaguard
+  description: Validates local data files against a YAML contract.
+  entry: polaguard check
+  language: python
+  types: [file]
+  additional_dependencies: ['polaguard']
