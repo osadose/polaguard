@@ -17,6 +17,14 @@ def tmp_csv(tmp_path):
 
 
 @pytest.fixture()
+def tmp_json(tmp_path):
+    df = pl.DataFrame({"id": [1, 2, 3], "name": ["Alice", "Bob", "Carol"]})
+    path = tmp_path / "data.json"
+    df.write_json(path)
+    return path
+
+
+@pytest.fixture()
 def tmp_contract(tmp_path):
     contract = {
         "version": "1.0.0",
@@ -57,6 +65,15 @@ class TestInitCommand:
             data = yaml.safe_load(f)
         assert data["columns"]["id"]["type"] == "int"
         assert data["columns"]["name"]["type"] == "str"
+        assert data["constraints"]["min_rows"] == 3
+
+    def test_init_generates_contract_from_json(self, tmp_json, tmp_path):
+        output = tmp_path / "out.yaml"
+        result = runner.invoke(app, ["init", "--file", str(tmp_json), "--output", str(output)])
+        assert result.exit_code == 0
+        with open(output) as f:
+            data = yaml.safe_load(f)
+        assert data["columns"]["id"]["type"] == "int"
 
     def test_init_unsupported_format_exits_nonzero(self, tmp_path):
         bad_file = tmp_path / "data.txt"
@@ -103,3 +120,10 @@ class TestCheckCommand:
     def test_check_output_contains_dataset_name(self, tmp_csv, tmp_contract):
         result = runner.invoke(app, ["check", "--file", str(tmp_csv), "--contract", str(tmp_contract)])
         assert "test" in result.output
+
+
+class TestRootOptions:
+    def test_version_flag(self):
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert "polaguard" in result.output

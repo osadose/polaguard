@@ -35,6 +35,12 @@ class ContractValidator:
                 f"expected at least {self.contract.constraints.min_columns}."
             )
 
+        if self.df.height < self.contract.constraints.min_rows:
+            self.errors.append(
+                f"Constraint Failed: Found {self.df.height} rows, "
+                f"expected at least {self.contract.constraints.min_rows}."
+            )
+
         if not self.contract.constraints.allow_extra_columns:
             contract_cols = set(self.contract.columns.keys())
             df_cols = set(self.df.columns)
@@ -96,10 +102,19 @@ class ContractValidator:
                         f"not in allowed list {rules.allowed_values}."
                     )
 
-    def print_report(self):
+    def format_report(self) -> str:
         if not self.errors:
-            print(f"✅ Contract '{self.contract.dataset_name}' Passed!")
-        else:
-            print(f"❌ Contract '{self.contract.dataset_name}' Failed with {len(self.errors)} errors:")
-            for err in self.errors:
-                print(f" - {err}")
+            return f"✅ Contract '{self.contract.dataset_name}' Passed!"
+
+        lines = [
+            f"❌ Contract '{self.contract.dataset_name}' Failed with {len(self.errors)} errors:"
+        ]
+        lines.extend(f" - {err}" for err in self.errors)
+        return "\n".join(lines)
+
+    def print_report(self):
+        # Kept for backward compatibility. Prefer format_report() for programmatic usage.
+        report = self.format_report()
+        import sys
+
+        sys.stdout.write(report + "\n")

@@ -1,6 +1,6 @@
 # polaguard
 
-**Lightning-fast local data contract validation for CSV and Parquet files.**  
+**Lightning-fast local data contract validation for CSV, Parquet, and JSON files.**  
 Built to protect local pipelines, software loops, and CI/CD runners before data hits the cloud.
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -30,6 +30,21 @@ polaguard init --file data/baseline.parquet --output contract.yaml
 Instantly check incoming files against your established standards:
 ```bash
 polaguard check --file data/new_batch.csv --contract contract.yaml
+```
+
+### 4. Use the Python API
+```python
+from pathlib import Path
+from polaguard import validate_file
+
+result = validate_file(Path("data/new_batch.csv"), Path("contract.yaml"))
+if not result.is_valid:
+  print(result.errors)
+```
+
+### 5. Check CLI Version
+```bash
+polaguard --version
 ```
 
 ## 🛠️ Automated Integrations

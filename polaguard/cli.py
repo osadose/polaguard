@@ -5,35 +5,68 @@ import sys
 from pathlib import Path
 from .schema import DataContract
 from .validator import ContractValidator
+from . import __version__
 
 app = typer.Typer(add_completion=False)
 
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"polaguard {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        help="Show version and exit.",
+        callback=_version_callback,
+        is_eager=True,
+    )
+) -> None:
+    _ = version
+
+
+def _load_dataframe(file: Path) -> pl.DataFrame:
+    suffix = file.suffix.lower()
+    if suffix == ".csv":
+        return pl.read_csv(file)
+    if suffix == ".parquet":
+        return pl.read_parquet(file)
+    if suffix == ".json":
+        return pl.read_json(file)
+    raise ValueError(f"Unsupported file format: {file.suffix}")
+
+
+def _infer_contract_type(dtype: pl.DataType) -> str:
+    if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64, pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
+        return "int"
+    if dtype in {pl.Float32, pl.Float64}:
+        return "float"
+    if dtype == pl.Boolean:
+        return "bool"
+    if dtype == pl.Date:
+        return "date"
+    if dtype.base_type() == pl.Datetime:
+        return "datetime"
+    return "str"
+
 @app.command()
 def init(
-    file: Path = typer.Option(..., help="Path to a clean sample file (csv, parquet)"),
+    file: Path = typer.Option(..., help="Path to a clean sample file (csv, parquet, json)"),
     output: Path = typer.Option("contract.yaml", help="Where to save the generated contract")
 ):
     """
     Bootstrap a new data contract automatically from an existing file.
     """
     try:
-        if file.suffix == ".csv":
-            df = pl.read_csv(file)
-        elif file.suffix == ".parquet":
-            df = pl.read_parquet(file)
-        else:
-            typer.echo(f"Unsupported file format: {file.suffix}", err=True)
-            sys.exit(1)
+        df = _load_dataframe(file)
         
         columns_config = {}
         for col in df.columns:
-            dtype = str(df[col].dtype)
-            
-            contract_type = "str"
-            if "Int" in dtype: contract_type = "int"
-            elif "Float" in dtype: contract_type = "float"
-            elif "Boolean" in dtype: contract_type = "bool"
-            elif "Date" in dtype: contract_type = "date"
+            contract_type = _infer_contract_type(df[col].dtype)
             
             is_unique = df.select(pl.col(col).is_unique().all()).item()
             null_count = df.select(pl.col(col).is_null().sum()).item()
@@ -51,6 +84,7 @@ def init(
             "dataset_name": file.stem,
             "constraints": {
                 "min_columns": len(df.columns),
+                "min_rows": df.height,
                 "allow_extra_columns": False
             },
             "columns": columns_config
@@ -82,25 +116,18 @@ def check(
         sys.exit(1)
 
     try:
-        if file.suffix == ".csv":
-            df = pl.read_csv(file)
-        elif file.suffix == ".parquet":
-            df = pl.read_parquet(file)
-        elif file.suffix == ".json":
-            df = pl.read_json(file)
-        else:
-            typer.echo(f"Unsupported file format: {file.suffix}", err=True)
-            sys.exit(1)
+        df = _load_dataframe(file)
     except Exception as e:
         typer.echo(f"Error loading data file: {e}", err=True)
         sys.exit(1)
 
     validator = ContractValidator(df, contract_obj)
     is_valid = validator.validate()
-    validator.print_report()
+    typer.echo(validator.format_report())
 
     if not is_valid:
         sys.exit(1)
+
 
 def main():
     app()
